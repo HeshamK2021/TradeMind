@@ -35,6 +35,17 @@ streamlit run app/ui/overview.py
 
 # 5.1 )  Feed system with some data
 python scripts/backfill_pair.py --symbol BTC/USDT --tf 4h --target 5000
+python scripts/backfill_pair.py --symbol ETH/USDT --tf 4h --target 5000
+python scripts/backfill_pair.py --symbol SOL/USDT --tf 4h --target 5000
+python scripts/backfill_pair.py --symbol XRP/USDT --tf 4h --target 5000
+python scripts/backfill_pair.py --symbol SHIB/USDT --tf 4h --target 5000
+
+# alternatively 
+python -m scripts/backfill_pair.py --symbol BTC/USDT --tf 4h --target 5000
+python -m scripts/backfill_pair.py --symbol ETH/USDT --tf 4h --target 5000
+python -m scripts/backfill_pair.py --symbol SOL/USDT --tf 4h --target 5000
+python -m scripts/backfill_pair.py --symbol XRP/USDT --tf 4h --target 5000
+python -m scripts/backfill_pair.py --symbol SHIB/USDT --tf 4h --target 5000
 
 # 5.2 ) Build shifted features
 python -m scripts.build_features --symbol BTC/USDT --tf 4h
@@ -65,3 +76,6 @@ python scripts/baseline_windows_from_db.py --symbol BTC/USDT --tf 4h
 
 # 6 ) Tests 
 pytest -q
+
+# 7 ) Notes: Please note that torch is not updated with python >3.11 so it is a requirements and if the system gives any wierd errors always assure that torch is installed correctly! 
+pyenv local 3.11.1

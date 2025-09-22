@@ -287,39 +287,135 @@ def recent_features(symbol: str, tf: str, limit=150) -> Optional[pd.DataFrame]:
     return df.sort_values("ts")
 
 PAIRS_YAML = ROOT / "config" / "pairs.yaml"
+
+def _norm_symbol(s: str) -> str:
+    s = (s or "").strip().upper().replace(" ", "")
+    if "/" not in s and len(s) >= 6:
+        base, quote = s[:-4], s[-4:]
+        s = f"{base}/{quote}"
+    return s
+
+def _norm_tf(tf: str) -> str:
+    return (tf or "").strip().lower()
+
+def _dedupe_pairs(pairs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    seen = set()
+    out = []
+    for p in pairs or []:
+        sym = _norm_symbol(p.get("symbol", ""))
+        tf  = _norm_tf(p.get("tf", ""))
+        if not sym or not tf:  
+            continue
+        key = (sym, tf)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({"symbol": sym, "tf": tf})
+    return out
+
 def load_pairs_yaml() -> Dict[str, Any]:
-    if not PAIRS_YAML.exists(): return {"pairs": []}
-    try: return yaml.safe_load(PAIRS_YAML.read_text()) or {"pairs": []}
-    except Exception: return {"pairs": []}
+    if not PAIRS_YAML.exists():
+        return {"pairs": []}
+    try:
+        cfg = yaml.safe_load(PAIRS_YAML.read_text()) or {}
+        pairs = _dedupe_pairs(cfg.get("pairs", []))
+        return {"pairs": pairs}
+    except Exception:
+        return {"pairs": []}
+
 def save_pairs_yaml(cfg: Dict[str, Any]) -> None:
+    pairs = _dedupe_pairs(cfg.get("pairs", []))
+    pairs = sorted(pairs, key=lambda p: (p["symbol"], p["tf"]))
     PAIRS_YAML.parent.mkdir(parents=True, exist_ok=True)
-    PAIRS_YAML.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
+    PAIRS_YAML.write_text(yaml.safe_dump({"pairs": pairs}, sort_keys=False), encoding="utf-8")
+
+def ensure_pairs_yaml(default_pairs: Optional[List[Dict[str, str]]] = None) -> None:
+    if PAIRS_YAML.exists():
+        return
+    defaults = default_pairs or [
+        {"symbol": "BTC/USDT", "tf": "4h"},
+        {"symbol": "ETH/USDT", "tf": "4h"},
+        {"symbol": "BTC/USDT", "tf": "1h"},
+        {"symbol": "ETH/USDT", "tf": "1h"},
+    ]
+    save_pairs_yaml({"pairs": defaults})
+
+ensure_pairs_yaml()
 
 with st.sidebar:
     st.header("Global")
     st.text_input("API Base", value=API_BASE, disabled=True)
+
+    colL, colR = st.columns([1, 1])
+    with colL:
+        if st.button("🔄 Refresh"):
+            st.cache_data.clear()
+            st.cache_resource.clear()
+            st.experimental_rerun()
+    with colR:
+        if st.button("🧹 Clear cache only"):
+            st.cache_data.clear()
+            st.cache_resource.clear()
+            st.success("Cache cleared.")
+
     st.markdown("<div class='thin-divider'></div>", unsafe_allow_html=True)
-    st.caption("Add a new pair to the config/pairs.yaml file")
+
+    cfg = load_pairs_yaml()
+    current_pairs = cfg.get("pairs", [])
+    if current_pairs:
+        st.caption("Configured pairs (config/pairs.yaml)")
+        for p in current_pairs:
+            st.markdown(
+                f"<span class='chip'>🪪 {p['symbol']} · {p['tf']}</span>",
+                unsafe_allow_html=True,
+            )
+    else:
+        st.info("No pairs in config yet.")
+
+    st.markdown("<div class='thin-divider'></div>", unsafe_allow_html=True)
+
+    st.caption("Add a new pair to config/pairs.yaml")
     ns, ntf = st.columns(2)
-    with ns: new_symbol = st.text_input("Symbol", value="ETH/USDT")
+    with ns:
+        new_symbol_raw = st.text_input("Symbol", value="ETH/USDT", key="add_pair_symbol")
     with ntf:
         opts_tf = list(DEFAULT_TFS)
-        new_tf = st.selectbox("Timeframe", opts_tf, index=_safe_index(opts_tf, "4h", 2))
-    if st.button("➕ Add Pair"):
-        cfg = load_pairs_yaml()
-        pairs = cfg.get("pairs", [])
-        if any(p.get("symbol")==new_symbol and p.get("tf")==new_tf for p in pairs):
-            st.warning("Pair already exists.")
-        else:
-            pairs.append({"symbol": new_symbol, "tf": new_tf})
-            cfg["pairs"] = pairs
-            save_pairs_yaml(cfg)
-            st.success("Pair added.")
+        new_tf_raw = st.selectbox("Timeframe", opts_tf, index=_safe_index(opts_tf, "4h", 2), key="add_pair_tf")
 
-pairs_index = list_latest_pairs()
-known_symbols = sorted({p.get("symbol") for p in pairs_index if p.get("symbol")}) or DEFAULT_SYMBOLS
-known_tfs_set = {p.get("tf") for p in pairs_index if p.get("tf")}
-known_tfs = list(dict.fromkeys(DEFAULT_TFS + sorted([t for t in known_tfs_set if t])))
+    if st.button("➕ Add Pair"):
+        new_symbol = _norm_symbol(new_symbol_raw)
+        new_tf     = _norm_tf(new_tf_raw)
+        if not new_symbol or not new_tf:
+            st.warning("Please enter a valid symbol and timeframe.")
+        else:
+            pairs = cfg.get("pairs", [])
+            pairs.append({"symbol": new_symbol, "tf": new_tf})
+            pairs = _dedupe_pairs(pairs)
+            save_pairs_yaml({"pairs": pairs})
+            st.success(f"Added {new_symbol} · {new_tf} to config.")
+            st.experimental_rerun()
+
+pairs_index_api = list_latest_pairs() or []
+pairs_api = [
+    {"symbol": _norm_symbol(p.get("symbol", "")), "tf": _norm_tf(p.get("tf", ""))}
+    for p in pairs_index_api if p.get("symbol") and p.get("tf")
+]
+pairs_cfg = load_pairs_yaml().get("pairs", [])
+
+all_pairs = _dedupe_pairs(pairs_cfg + pairs_api)
+
+known_symbols = sorted({p["symbol"] for p in all_pairs}) or DEFAULT_SYMBOLS
+
+def _tfs_for_symbol(sym: str) -> List[str]:
+    sym = _norm_symbol(sym)
+    from_pairs = sorted({p["tf"] for p in all_pairs if p["symbol"] == sym})
+    merged = list(dict.fromkeys(DEFAULT_TFS + from_pairs))
+    return merged
+
+
+selected_symbol_default = _norm_symbol("ETH/USDT")
+known_tfs = _tfs_for_symbol(selected_symbol_default)
+
 
 st.markdown("<div class='card'>", unsafe_allow_html=True)
 st.markdown("<h3 class='section-title'>Step 0 — Pick Pair</h3>", unsafe_allow_html=True)

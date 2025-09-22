@@ -1,5 +1,33 @@
+version: 1
+default_exchange: binance
+
 pairs:
-- symbol: ETH/USDT
-  tf: 4h
-- symbol: DOGE/USDT
-  tf: 4h
+  - symbol: BTC/USDT
+    tfs: [15m, 1h, 4h, 1d]
+    backfill: { target_rows: 5000, page_size: 1000 }
+    enabled: true
+
+  - symbol: ETH/USDT
+    tfs: [15m, 1h, 4h, 1d]
+    backfill: { target_rows: 5000, page_size: 1000 }
+    enabled: true
+
+  - symbol: SOL/USDT
+    tfs: [1h, 4h, 1d]
+    backfill: { target_rows: 4000, page_size: 1000 }
+    enabled: true
+
+  - symbol: XRP/USDT
+    tfs: [1h, 4h]
+    backfill: { target_rows: 4000, page_size: 1000 }
+    enabled: false
+
+  - symbol: SHIB/USDT
+    tfs: [1h, 4h]
+    backfill: { target_rows: 3000, page_size: 1000 }
+    enabled: false
+
+  - symbol: DOGE/USDT
+    tfs: [1h, 4h]
+    backfill: { target_rows: 3000, page_size: 1000 }
+    enabled: false

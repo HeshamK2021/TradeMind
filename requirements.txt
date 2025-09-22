@@ -1,0 +1,28 @@
+fastapi
+uvicorn[standard]
+pydantic
+sqlalchemy
+python-dotenv
+pandas
+numpy
+ta
+backtrader
+ccxt>=4.3.0
+redis>=5.0.0
+celery
+lime
+shap
+streamlit
+plotly
+black
+ruff
+pytest
+mypy
+httpx
+pydantic-settings>=2.3
+torch
+gymnasium
+stable-baselines3
+stable-baselines3[extra]
+ tqdm 
+ rich

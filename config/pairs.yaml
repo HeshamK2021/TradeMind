@@ -1,0 +1,5 @@
+pairs:
+- symbol: ETH/USDT
+  tf: 4h
+- symbol: DOGE/USDT
+  tf: 4h

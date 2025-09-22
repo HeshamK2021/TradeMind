@@ -1,0 +1,26 @@
+pairs:
+- symbol: ETH/USDT
+  tf: 4h
+- symbol: BTC/USDT
+  tf: 4h
+- symbol: SOL/USDT
+  tf: 4h
+- symbol: XRP/USDT
+  tf: 4h
+- symbol: SHIB/USDT
+  tf: 4h
+- symbol: DOGE/USDT
+  tf: 4h
+train:
+  steps: 120000
+  fees_bps: 10
+  slippage_bps: 1
+  use_short: true
+  short_fee_bps: 2
+eval:
+  use_short: true
+  use_atr_stop: false
+  atr_k: 2.0
+  atr_penalty: 0.0
+retention:
+  max_checkpoints_per_pair: 10
